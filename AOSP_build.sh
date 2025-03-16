@@ -10,21 +10,21 @@ green='\033[1;32m'
 red='\033[1;31m'
 MAKE_MODULE=0      # This flag is used to disable generating modules permanently
 KERNELDIR=$PWD
-# Speed up build process
-MAKE="./makeparallel"
 
 
 echo -e " $yellow #####|               AOSP-Nethunter_build.sh                |########$nocol "
 echo -e " $yellow #####|     Choose Correct options as required when asked    |##########$nocol "
 echo -e " $yellow #####| To use specific AOSP clang version, edit this script |######$nocol "
 echo -e " $yellow #####|            and specify correct clang version         |#####$nocol "
+# Installing dependencies
+# sudo apt-get update && sudo apt-get install llvm lld lldb clang gcc binutils flex bison build-essential git gcc g++ gcc-aarch64-linux-gnu gcc-arm-linux-gnueabihf gcc-arm-linux-gnueabi
 
+# -----------------------------------------------------------------------------------------------------------------------------------
+# ---------------------------- EXPORTS --------------------------------------------------
 KERNEL_DEFCONFIG=gki_defconfig
 ANYKERNEL3_DIR=$PWD/AnyKernel3/
-export ARCH=arm64
-export SUBARCH=ARM64
 CLANG_BINARY="$CLANG_DIR/bin/clang"
-CLANG_VERSION=clang-r450784e
+CLANG_VERSION=clang-r547379
 CC_CLANG=clang
 CLANG_DIR="/home/akm/Git/Clang/$CLANG_VERSION"
 export PATH="$CLANG_DIR/bin:$PATH"
@@ -32,6 +32,8 @@ export KBUILD_COMPILER_STRING="$($CLANG_BINARY --version | head -n 1 | perl -pe 
 
 # Define variable to hold the name of the kernel artifact
 ARTIFACT="Image.gz"
+
+# -------------------------------------- Functions ------------------------------------------------------
 
 clone() {
     if ! [ -d "$CLANG_DIR" ]; then
@@ -111,16 +113,11 @@ clean_kernel() {
     cd $KERNELDIR
     # Always do clean build lol
     echo -e "$yellow**** Cleaning / Removing 'out' folder ****$nocol"
-    # make clean             # Can cause issues
-    # make mrproper  # Can cause issues
     rm -rf out
     mkdir -p out
-    # make O=out clean       # Unnecessary after running rm -rf out
-    # make O=out mrproper    # Unnecessary
 
     echo -e "$yellow**** Removing 'Mod' and 'libufdt' folders ****$nocol"
     rm -rf Mod
-    rm -rf "$KERNELDIR/scripts/ufdt/libufdt"
 
     echo -e "$yellow**** Cleaning 'AnyKernel3' folder / any previous builds ****$nocol"
     rm -f "$ANYKERNEL3_DIR"/*.zip
@@ -292,21 +289,19 @@ zip_kernel() {
     rm -rf "$ANYKERNEL3_DIR/$ARTIFACT"
     rm -rf "$ANYKERNEL3_DIR"/*.zip
     rm -rf "$ANYKERNEL3_DIR"/dtbo.img
-
+    if [ ! -f "$KERNELDIR/out/arch/arm64/boot/$ARTIFACT" ]; then
+        echo -e "$red**** Error: $ARTIFACT not found! Build failed. ****$nocol"
+        exit 1
+    fi
     # Generate today's date and time in the format YYYYMMDD_HHMMSS
     TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 
     # Append timestamp to the final kernel zip file name
     FINAL_KERNEL_ZIP_WITH_TIMESTAMP="${FINAL_KERNEL_ZIP%.*}_${TIMESTAMP}.zip"
+    export FINAL_KERNEL_ZIP_WITH_TIMESTAMP
 
     echo -e "$yellow**** Copying $ARTIFACT to anykernel 3 folder ****$nocol"
     cp "$KERNELDIR/out/arch/arm64/boot/$ARTIFACT" "$ANYKERNEL3_DIR/"
-    
-    if [ $BUILD_DTBOIMG = "1" ]
-    then
-        echo -e "$yellow**** Copying dtbo.img to anykernel 3 folder ****$nocol"
-        cp "$KERNELDIR"/out/arch/arm64/boot/dtbo.img $ANYKERNEL3_DIR/dtbo.img
-    fi
 
     echo -e "$green**** Time to zip up! ****$nocol"
     cd $ANYKERNEL3_DIR/
@@ -316,7 +311,7 @@ zip_kernel() {
     echo -e "$green**** Done, generated flashable zip successfully ****$nocol"
 
     # Output the location of the generated zip file
-    echo -e "$green**** Generated Zip File Location: $KERNELDIR/Anykernel3/$FINAL_KERNEL_ZIP_WITH_TIMESTAMP ****$nocol"
+    echo -e "$green**** Generated Zip File Location: $KERNELDIR/AnyKernel3/$FINAL_KERNEL_ZIP_WITH_TIMESTAMP ****$nocol"
 
     cd ..
 }
@@ -330,33 +325,23 @@ summary() {
     BUILD_END=$(date +"%s")
     DIFF=$(($BUILD_END - $BUILD_START))
     echo -e "$green Full Build completed in $(($DIFF / 60)) minute(s) and $(($DIFF % 60)) seconds.$nocol"
-    echo -e "$green**** Generated Zip File Location: $KERNELDIR/Anykernel3/$FINAL_KERNEL_ZIP_WITH_TIMESTAMP ****$nocol"
+    echo -e "$green**** Generated Zip File Location: $KERNELDIR/AnyKernel3/$FINAL_KERNEL_ZIP_WITH_TIMESTAMP ****$nocol"
     echo -e "$green**** Checksum for kernel zip ****$nocol"
     sha1sum "$KERNELDIR/AnyKernel3/$FINAL_KERNEL_ZIP_WITH_TIMESTAMP"
 
     [ -n "$MOD_NAME" ] && echo -e "$green**** Checksum for Module zip ****$nocol" && sha1sum "$KERNELDIR/Mod/$MOD_NAME" && echo -e "$green**** Generated Module Zip File Location: $KERNELDIR/Mod/$MOD_NAME ****$nocol"
 }
 
-# Call and test functions as needed
+# ------------------- # Call and test functions as needed # ------------------------------- # 
 
-# Function to clone the AOSP Clang (specify directory first!!)
+initializeTest
+clean_kernel
 clone
-
-main() {
-    initializeTest
-    clean_kernel
-
-    if [ "$MOD_ONLY" == "n" ]; then
-        build_kernel
-        zip_kernel
-    fi
-
-    build_modules
-    summary
-}
-
-# Call the main function to start execution
-main
-
+if [ "$MOD_ONLY" == "n" ]; then
+    build_kernel
+    zip_kernel
+fi
+build_modules
+summary
 
 
