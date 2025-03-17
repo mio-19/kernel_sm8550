@@ -1,3 +1,20 @@
+# From AKM
+===============================
+My personal fork of Edgars-Cirulis's Kernel with SUSFS patch and KernelSU-Next support along with other minor modifications.
+
+ defconfig used : gki_defconfig
+
+
+For Rom / Kernel Devs: IF you want to inline this kernel in your Roms then do this before building ( In kernel root directory ):
+
+curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next-susfs/kernel/setup.sh" | bash -s next-susfs
+
+Do this Everytime you clone the repo as this kernel has the support for Kernel-SU-Next and it needs to be recloned and checkout to latest stable tag.
+
+To compile the kernel just edit AOSP_build.sh (Located in kernel root directory) to set clang paths and just execute the build script to start compiling.
+
+
+
 # How do I submit patches to Android Common Kernels
 
 1. BEST: Make all of your changes to upstream Linux. If appropriate, backport to the stable releases.
