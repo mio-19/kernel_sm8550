@@ -31,10 +31,13 @@ echo -e " $yellow #####|       top of the script to enable KernelSU patches   |#
 # ---------------------------| EXPORTS and Directory Setup |------------------------------------------------------ #
 KERNEL_DEFCONFIG=gki_defconfig  # Looks for defconfig in arch/<exported_arch>/configs/
 ANYKERNEL3_DIR=$PWD/AnyKernel3/ # Required by the function zip_kernel
-CLANG_BINARY="$(which clang)"
+CLANG_VERSION=clang-r547379
+CLANG_DIR="$HOME/Git/Clang/$CLANG_VERSION"
+CLANG_BINARY="$CLANG_DIR/bin/clang"
 CC_CLANG=clang
 export ARCH=arm64
 export SUBARCH=ARM64
+export PATH="$CLANG_DIR/bin:$PATH"
 export KBUILD_COMPILER_STRING="$($CLANG_BINARY --version | head -n 1 | perl -pe 's/\(http.*?\)//gs' | sed -e 's/  */ /g' -e 's/[[:space:]]*$//')"
 
 # An array that stores all make command, edit it as required. These options will be used throughout the script
@@ -162,6 +165,20 @@ error_handler() {
 
 clone() {
     log_section "Clone Function Start"
+    if ! [ -d "$CLANG_DIR" ]; then
+        echo -e "${red}Clang not found! Cloning...${nocol}"
+        mkdir -p "$CLANG_DIR"
+
+        if ! wget --show-progress -O "$CLANG_DIR/${CLANG_VERSION}.tar.gz" "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/${CLANG_VERSION}.tar.gz"; then
+            echo "${red}Cloning failed! Aborting...${nocol}"
+            exit 1
+        fi
+
+        echo "${yellow}Cloning successful. Extracting the tar file...${nocol}"
+        tar -xzf "$CLANG_DIR/${CLANG_VERSION}.tar.gz" -C "$CLANG_DIR"
+        rm "$CLANG_DIR/${CLANG_VERSION}.tar.gz"
+    fi
+
     echo -e "${green}Correct Clang version is cloned and setup!${nocol}"
 }
 
